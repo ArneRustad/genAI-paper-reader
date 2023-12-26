@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "paperreader"
+version = "0.1.0"
+description = "Generative AI application for assisting with reading and comparing papers"
+authors = ["ArneRustad <arner97@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langchain = "^0.0.352"
+ipykernel = "^6.28.0"
+ipython = "^8.19.0"
+openai = "^1.6.1"
+python-dotenv = "^1.0.0"
+wheel = "^0.42.0"
+streamlit = "^1.29.0"
+pymupdf = "^1.23.8"
+pydantic = "^2.5.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
