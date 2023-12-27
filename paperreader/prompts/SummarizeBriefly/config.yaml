@@ -1,0 +1,4 @@
+# https://python.langchain.com/docs/modules/model_io/prompts/prompt_templates/prompt_serialization#prompttemplate-with-outputparser
+
+_type: prompt
+input_variables: ["article"]

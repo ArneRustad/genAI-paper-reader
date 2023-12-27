@@ -1,0 +1,6 @@
+Please summarize this article.
+
+Article:
+""""{article}
+
+Summary:"""
