@@ -1,39 +1,60 @@
 import streamlit as st
-import tempfile
 import os
 
-from paperreader.llm import chat_model_gpt_4_turbo as llm
-from langchain.prompts import PromptTemplate
-from langchain.document_loaders import PyMuPDFLoader
+from paperreader.models.controller import Controller
 
 st.set_page_config(
     page_title="Article summarizer",
     layout="wide",
 )
 
+st.session_state.setdefault("controller", Controller())
+
 st.title("Article summarizer")
 
-uploaded_articles = st.file_uploader(
-    label="Upload one or more files",
-    accept_multiple_files=True,
-    key="article_uploader")
+def render_upload_articles():
+    controller = st.session_state.controller
+    with st.form("my-form", clear_on_submit=True):
+        uploaded_articles = st.file_uploader(
+            label="Upload one or more files",
+            accept_multiple_files=True,
+            key="article_uploader"
+        )
+        st.write(uploaded_articles)
+        submitted = st.form_submit_button(
+            "Add new uploaded articles",
+            disabled=False
+        )
 
-if uploaded_articles:
-    for i, uploaded_file in enumerate(uploaded_articles):
-        bytes_data = uploaded_file.read()
-        with tempfile.TemporaryDirectory() as temp_dir:
-            _, suffix = os.path.splitext(uploaded_file.name)
-            temp_path = os.path.join(temp_dir, f"temp{suffix}")
-            with open(temp_path, mode="wb") as f:
-                f.write(bytes_data)
-        
-            prompt_template = PromptTemplate.from_template(
-                'Please summarize this article.\n\nArticle:""""{article}\n\nSummary:"""'
-            )
-            loader = PyMuPDFLoader(temp_path)
-            docs = loader.load()
-            article = "\n\n".join([f"## Page {i+1}\n"+ doc.page_content for i, doc in enumerate(docs)])
-            st.markdown(f"# Article {i+1}: {uploaded_file.name}")
-            with st.spinner('Summarizing article...'):
-                summary = llm.predict(prompt_template.format(article=article))
-                st.write(summary)
+        if submitted:
+            for i, uploaded_file in enumerate(uploaded_articles):
+                bytes_data = uploaded_file.read()
+                _, suffix = os.path.splitext(uploaded_file.name)
+                controller.add_article_from_bytes(
+                    bytes_data=bytes_data,
+                    filetype=suffix,
+                    title=uploaded_file.name
+                )
+
+                with st.spinner('Summarizing article...'):
+                    article = controller.articles[i]
+                    if not article.is_summarized():
+                        article.summarize()
+
+
+controller = st.session_state.controller
+if len(controller.articles) == 0:
+    render_upload_articles()
+else:
+    tabs = st.tabs(
+        ["Add new article(s)"] +
+        [f"Article {i+1}" for i in range(len(controller.articles))]
+    )
+    with tabs[0]:
+        render_upload_articles()
+
+    article_tabs = tabs[1:]
+    for article_tab, article in zip(article_tabs, controller.articles):
+        with article_tab:
+            st.markdown(f"## {article.title}")
+            st.write(article.summary)
