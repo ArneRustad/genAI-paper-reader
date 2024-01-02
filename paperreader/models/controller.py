@@ -9,13 +9,14 @@ from paperreader.llm import chat_model_gpt_4_turbo as llm
 from langchain.document_loaders import PyMuPDFLoader
 
 from paperreader.chains.summarize_article import (
-    chain as summarize_article_chain
+    chain as summarize_article_chain,
+    SummariesExtractionSchema,
 )
 
 class Article(BaseModel):
     title: str = Field(default=None)
     documents: List = Field(default=None)
-    summary: str = Field(default=None)
+    summaries_obj: SummariesExtractionSchema = Field(default=None)
     
     @classmethod
     def from_bytes(
@@ -36,22 +37,22 @@ class Article(BaseModel):
                 title=title
             )
             return article
+    
+    def to_markdown(self):
+        text = "# Article"
+        text += "\n\n".join(
+            [f"## Page {i+1}\n"+ doc.page_content for i, doc in enumerate(self.documents)]
+        )
+        return text
             
     
     def summarize(self):
-        # prompt_template = PromptTemplate.from_template(
-        #     'Please summarize this article.\n\nArticle:""""{article}\n\nSummary:"""'
-        # )
-        article = "\n\n".join(
-            [f"## Page {i+1}\n"+ doc.page_content for i, doc in enumerate(self.documents)]
-        )
-        # self.summary = llm.predict(prompt_template.format(article=article))
-        self.summary = summarize_article_chain.invoke(
-            article
+        self.summaries_obj = summarize_article_chain.invoke(
+            self.to_markdown()
         )
     
     def is_summarized(self):
-        return self.summary is not None
+        return self.summaries_obj is not None
 
 
 class Controller(BaseModel):
@@ -66,3 +67,20 @@ class Controller(BaseModel):
     ):
         article = Article.from_bytes(**kwargs)
         self.add_article(article)
+    
+    def _summarize_articles(self, article_indices):
+        articles = [self.articles[i] for i in article_indices]
+        texts = [article.to_markdown() for article in articles]
+        summaries_objects = summarize_article_chain.batch(texts)
+        for article, summaries_obj in zip(articles, summaries_objects):
+            article.summaries_obj = summaries_obj
+    
+    def summarize_articles(self, overwrite=False):
+        if overwrite:
+            article_indices = range(len(self.articles))
+        else:
+            article_indices = [
+                i for i, article in enumerate(self.articles)
+                if not article.is_summarized()
+            ]
+        self._summarize_articles(article_indices=article_indices)

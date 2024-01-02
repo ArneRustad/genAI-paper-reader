@@ -1,6 +1,4 @@
-Please summarize this article.
+Please extract the desired summaries. Make sure to follow the length requirements of each type of summary.
 
 Article:
-""""{article}
-
-Summary:"""
+""""{article}"""
